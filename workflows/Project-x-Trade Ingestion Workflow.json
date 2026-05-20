@@ -1,0 +1,427 @@
+{
+  "name": "Project-x-Trade Ingestion Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "numberInputs": 3,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        272,
+        -48
+      ],
+      "id": "c780af19-8a3e-4386-9cd3-f0548d2faa62",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const tradeData = item.json;\n\n// ---------- Safety Checks ----------\nif (!tradeData.trade) {\n  throw new Error(\"Trade data missing.\");\n}\n\nif (!tradeData.sentiment_snapshot) {\n  throw new Error(\"Sentiment snapshot missing.\");\n}\n\nconst s = tradeData.sentiment_snapshot;\n\n// ---------- Build Deterministic Vector Text ----------\nconst vector_text = `\nTRADE CONTEXT SNAPSHOT\n\nPAIR: ${tradeData.trade.pair}\nPOSITION: ${tradeData.trade.position_side}\nORDER TYPE: ${tradeData.trade.order_type}\nSTRATEGY: ${tradeData.bot_metadata.strategy}\n\nTECHNICAL STRUCTURE\nTrend Direction: ${tradeData.trend_direction}\nRSI Category: ${tradeData.categorized.rsi_category}\nVolatility Category: ${tradeData.categorized.volatility_category}\nTrend Strength: ${tradeData.categorized.trend_strength_category}\nPrice vs MA7: ${tradeData.categorized.price_vs_ma7_category}\nMarket Pressure: ${tradeData.embedding_context.market_pressure_state}\nRSI State: ${tradeData.embedding_context.rsi_state}\n\nSENTIMENT STRUCTURE\nShort Term Band: ${s.short_term_band}\nLong Term Band: ${s.long_term_band}\nRegime: ${s.regime}\nDominant Driver: ${s.dominant_driver}\nConfidence: ${s.confidence}\nDivergence: ${s.divergence}\n\nRISK STRUCTURE\nStop Loss: ${tradeData.risk_management.stop_loss}\nTake Profit 1: ${tradeData.risk_management.take_profit.tp1}\nTake Profit 2: ${tradeData.risk_management.take_profit.tp2}\nTrailing Stop: ${tradeData.risk_management.trailing_stop.enabled}\n`.trim();\n\n// ---------- Flat Payload (Optimized for Filtering) ----------\nconst payload = {\n  // Core Trade Info\n  pair: tradeData.trade.pair,\n  position_side: tradeData.trade.position_side,\n  order_type: tradeData.trade.order_type,\n  strategy: tradeData.bot_metadata.strategy,\n  order_id: tradeData.trade.order_id,\n  timestamp: tradeData.timestamp,\n\n  // Sentiment\n  short_term_avg: s.short_term_avg,\n  long_term_avg: s.long_term_avg,\n  short_term_band: s.short_term_band,\n  long_term_band: s.long_term_band,\n  regime: s.regime,\n  dominant_driver: s.dominant_driver,\n  sentiment_confidence: s.confidence,\n  divergence: s.divergence,\n\n  // Technical State\n  trend_direction: tradeData.trend_direction,\n  rsi_category: tradeData.categorized.rsi_category,\n  volatility_category: tradeData.categorized.volatility_category,\n  trend_strength_category: tradeData.categorized.trend_strength_category,\n  price_vs_ma7_category: tradeData.categorized.price_vs_ma7_category,\n  market_pressure_state: tradeData.embedding_context.market_pressure_state,\n  rsi_state: tradeData.embedding_context.rsi_state,\n\n  // Risk Parameters\n  stop_loss: tradeData.risk_management.stop_loss,\n  take_profit_1: tradeData.risk_management.take_profit.tp1,\n  take_profit_2: tradeData.risk_management.take_profit.tp2,\n  trailing_stop_enabled: tradeData.risk_management.trailing_stop.enabled,\n\n  // Market Snapshot\n  entry_price: tradeData.trade.execution.entry_price,\n  market_price_at_entry: tradeData.data.price_usd,\n  volatility: tradeData.data.volatility,\n  dominance_ratio: tradeData.data.dominance_ratio,\n  market_pressure_score: tradeData.data.market_pressure_score,\n\n  // ---------- Outcome (Initially Null) ----------\n  exit_price: null,\n  exit_timestamp: null,\n  pnl_usdt: null,\n  pnl_percent: null,\n  result: null,                 // \"win\" | \"loss\" | null\n  exit_reason: null,            // \"tp1\" | \"tp2\" | \"stop_loss\" | \"manual\" | null\n  holding_time_minutes: null,\n  rr_realized: null\n};\n\n// ---------- Stable ID ----------\nconst tradeId = `trade_${tradeData.trade.order_id}`;\n\n// ---------- Return Qdrant-ready Object ----------\nreturn {\n  json: {\n    id: tradeId,\n    vector_text,\n    payload\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        512,
+        -32
+      ],
+      "id": "e4a2e97b-9a35-49d2-bb95-3d885e951c70",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:1234/v1/embeddings",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "input",
+              "value": "={{ $json.vector_text }}"
+            },
+            {
+              "name": "model",
+              "value": "text-embedding-bge-m3"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "2d4559ea-9fa7-4413-912b-0b5fda0b110e",
+      "name": "LM Studio Embeddings",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        704,
+        144
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "mXkDyVzf33CqpYzp",
+          "name": "LM-STUDIO"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        880,
+        -16
+      ],
+      "id": "adfdb3fe-d32a-42e5-bacb-3a66482babf9",
+      "name": "Merge1"
+    },
+    {
+      "parameters": {
+        "resource": "point",
+        "operation": "upsertPoints",
+        "collectionName": {
+          "__rl": true,
+          "value": "trade-sentiment",
+          "mode": "list",
+          "cachedResultName": "trade-sentiment"
+        },
+        "points": "=[\n  {\n    \"id\": {{ $json.id }},\n    \"vector\": {{ $json.vector.toJsonString() }},\n    \"payload\": {{ $json.payload.toJsonString() }}\n  }\n]\n",
+        "requestOptions": {}
+      },
+      "type": "n8n-nodes-qdrant.qdrant",
+      "typeVersion": 1,
+      "position": [
+        1712,
+        -16
+      ],
+      "id": "1a25bc12-a1a6-42a9-9c86-4d6e55787d9a",
+      "name": "Upsert Points",
+      "credentials": {
+        "qdrantRestApi": {
+          "id": "LAi0bjserpFufaCa",
+          "name": "Qdrant account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n\n  const embeddingArray = item.json.data[0].embedding;\n\n  return {\n    json: {\n      id: item.json.id,\n      vector: embeddingArray,\n      payload: item.json.payload\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1168,
+        -16
+      ],
+      "id": "1977551c-bc45-428c-afcd-455cb0f87cd4",
+      "name": "Code in JavaScript3"
+    },
+    {
+      "parameters": {
+        "jsCode": "for (const item of $input.all()) {\n\n  // Extract digits only\n  const numericId = item.json.id.replace(/\\D/g, '');\n\n  // Convert to BigInt to ensure it's treated as unsigned integer\n  item.json.id = BigInt(numericId);\n\n}\n\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1456,
+        -16
+      ],
+      "id": "3e9828b4-e60e-4f88-8319-d3da1456aca8",
+      "name": "Code in JavaScript4"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "7bec24d7-b65f-4c3e-a3f6-00df40cca18b",
+              "leftValue": "={{ $json.subject }}",
+              "rightValue": "Opened",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -448,
+        -32
+      ],
+      "id": "d36726e8-e40f-41ed-8127-9eaaa3073b9f",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "4ecekl9UO8ruvdrl",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/4ecekl9UO8ruvdrl",
+          "cachedResultName": "Project-x-Market Feature Extraction"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        -48,
+        80
+      ],
+      "id": "6351e69f-6127-4db1-b28f-781f96f09496",
+      "name": "Call Project-X Marketsentiment"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "6FeEHf40UDv6Haj1",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/6FeEHf40UDv6Haj1",
+          "cachedResultName": "project-x-Trade Close Update"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        -48,
+        336
+      ],
+      "id": "cf564d38-8160-4b33-a480-3868f55a467b",
+      "name": "Call 'project-x Closed-trade-update'"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "wMoJhVjZlbMsue5W",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/wMoJhVjZlbMsue5W",
+          "cachedResultName": "project-x-News Sentiment Extraction"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        -48,
+        -144
+      ],
+      "id": "35ef68da-8499-400d-a36a-4e560472bf49",
+      "name": "Call 'project-x-News Sentiment Extraction'"
+    },
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -672,
+        -32
+      ],
+      "id": "21406be1-89f9-4288-8822-b9376e2b61fd",
+      "name": "When Executed by Another Workflow"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "LM Studio Embeddings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LM Studio Embeddings": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert Points": {
+      "main": [
+        []
+      ]
+    },
+    "Code in JavaScript3": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript4": {
+      "main": [
+        [
+          {
+            "node": "Upsert Points",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Call 'project-x-News Sentiment Extraction'",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Call Project-X Marketsentiment",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Call 'project-x Closed-trade-update'",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Project-X Marketsentiment": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Call 'project-x Closed-trade-update'": {
+      "main": [
+        []
+      ]
+    },
+    "Call 'project-x-News Sentiment Extraction'": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "16685898-5f90-43c1-8310-f32e59fe82de",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "99f8c50ed3de66be5a87b2eda897b96771bb423ac49e5b33cd90d2b6bae8b0fb"
+  },
+  "id": "Q6lALi55mlcHuiCh",
+  "tags": []
+}

@@ -1,0 +1,305 @@
+{
+  "name": "Project-x-Market Feature Extraction",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n\n  const rsi = item.json.data?.rsi;\n\n  function classifyRsi(rsi) {\n    if (rsi == null) return null;\n    if (rsi < 20) return \"extreme_oversold\";\n    if (rsi < 30) return \"oversold\";\n    if (rsi < 45) return \"weak_bearish_momentum\";\n    if (rsi <= 55) return \"balanced\";\n    if (rsi <= 70) return \"bullish_momentum\";\n    if (rsi <= 80) return \"overbought\";\n    return \"extreme_overbought\";\n  }\n\n  item.json.data.rsi_state = classifyRsi(rsi);\n\n  return item;\n});\n\n\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        496,
+        0
+      ],
+      "id": "e78f05b9-4af7-4029-9e09-8f0dde2997b8",
+      "name": "get rsi clasification"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT row_to_json(cp) AS data\nFROM crypto_data.crypto_prices cp\nJOIN crypto_data.coins c ON cp.coin_id = c.id\nWHERE c.symbol = UPPER('{{ $json.trade.pair }}')\nORDER BY cp.date DESC\nLIMIT 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        320,
+        0
+      ],
+      "id": "eeb5903d-d4b0-48e3-8ece-6d8da7b61e4a",
+      "name": "Execute a SQL query",
+      "credentials": {
+        "postgres": {
+          "id": "xHZAn09ABbWklwIF",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n\n  const close = item.json.data?.close_price;\n  const ma7 = item.json.data?.ma_7;\n\n  function calculateStretch(close, ma7) {\n    if (close == null) return null;\n    if (ma7 == null || ma7 === 0) return null;\n\n    return ((close - ma7) / ma7) * 100;\n  }\n\n  function classifyStretch(stretch) {\n    if (stretch == null) return null;\n\n    if (stretch < -5) return \"deep_pullback\";\n    if (stretch > 5) return \"extended\";\n    return \"near_mean\";\n  }\n\n  const stretch = calculateStretch(close, ma7);\n\n  return {\n    json: {\n      ...item.json,\n      data: {\n        ...item.json.data,\n        price_vs_ma7_percent: stretch,\n        stretch_state: classifyStretch(stretch)\n      }\n    }\n  };\n\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        0
+      ],
+      "id": "8a4d2616-4855-4ae4-abe1-d508e73d86d8",
+      "name": "Stretch + Classification"
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n\n  const {\n    rsi_state,\n    trend_direction,\n    bullish_cross,\n    bearish_cross,\n    volume_spike\n  } = item.json.data || {};\n\n  function determineTrigger() {\n\n    // 1️⃣ RSI pullback logic\n    if (rsi_state === \"oversold\" && trend_direction === \"bullish\") {\n      return \"RSI_pullback_long\";\n    }\n\n    if (rsi_state === \"overbought\" && trend_direction === \"bearish\") {\n      return \"RSI_pullback_short\";\n    }\n\n    // 2️⃣ MA cross logic\n    if (bullish_cross === true) {\n      return \"Bullish_MA_Cross\";\n    }\n\n    if (bearish_cross === true) {\n      return \"Bearish_MA_Cross\";\n    }\n\n    // 3️⃣ Volume breakout logic\n    if (volume_spike === true && trend_direction === \"bullish\") {\n      return \"Bullish_Volume_Breakout\";\n    }\n\n    if (volume_spike === true && trend_direction === \"bearish\") {\n      return \"Bearish_Volume_Breakout\";\n    }\n\n    return \"None\";\n  }\n\n  return {\n    json: {\n      ...item.json,\n      data: {\n        ...item.json.data,\n        primary_trigger: determineTrigger()\n      }\n    }\n  };\n\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1248,
+        0
+      ],
+      "id": "96431be2-1b75-4aff-8e97-4099c37ed797",
+      "name": "primary trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n\n  const ma3 = item.json.data?.ma_3;\n  const ma7 = item.json.data?.ma_7;\n\n  function calculateTrendStrength(ma3, ma7) {\n    if (ma3 == null) return null;\n    if (ma7 == null || ma7 === 0) return null;\n\n    return ((ma3 - ma7) / ma7) * 100;\n  }\n\n  const trendStrength = calculateTrendStrength(ma3, ma7);\n\n  return {\n    json: {\n      ...item.json,\n      data: {\n        ...item.json.data,\n        trend_strength_score: trendStrength\n      }\n    }\n  };\n\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1456,
+        0
+      ],
+      "id": "c8e06b1f-713a-401c-8fc0-80d7981ee2c1",
+      "name": "trend_strength_score"
+    },
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -240,
+        0
+      ],
+      "id": "479f7354-7dd3-4094-98fc-dd4d13b13e90",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Loop over input items and add a new field called 'myNewField' to the JSON of each one\nfor (const item of $input.all()) {\n  item.json.myNewField = 1;\n}\n\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        144,
+        0
+      ],
+      "id": "69e19646-3119-4a6d-bcee-89beaf65b31b",
+      "name": "Retreive-Trade-Symbol"
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n\n const close = item.json.data?.close_price;\nconst ma3 = item.json.data?.ma_3;\nconst ma7 = item.json.data?.ma_7;\n\n  function classifyTrend(close, ma3, ma7) {\n    if (close === undefined || ma3 === undefined || ma7 === undefined) {\n      return null;\n    }\n\n    if (close > ma7 && ma3 > ma7) return \"bullish\";\n    if (close < ma7 && ma3 < ma7) return \"bearish\";\n    return \"sideways\";\n  }\n\n  return {\n    json: {\n      ...item.json,\n      trend_direction: classifyTrend(close, ma3, ma7)\n    }\n  };\n\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        0
+      ],
+      "id": "f13cc339-4a65-4ec8-a22d-812aeb1a5f5d",
+      "name": "Trend-Direction"
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n\n  const volatility = item.json.data?.volatility;\n\n  function classifyVolatility(vol) {\n    if (vol == null) return null;\n\n    // vol = 7-day std of pct_change\n\n    if (vol < 3) return \"low\";\n    if (vol < 6) return \"medium\";\n    return \"high\";\n  }\n\n  return {\n    json: {\n      ...item.json,\n      data: {\n        ...item.json.data,\n        volatility_regime: classifyVolatility(volatility)\n      }\n    }\n  };\n\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        832,
+        0
+      ],
+      "id": "7c9aeb25-4f07-46d4-bd02-5105b8b43e2b",
+      "name": "volatility_regime"
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n\n  const d = item.json.data;\n  const trend = item.json.trend_direction;\n\n  let score = 0;\n\n  // 1️⃣ Trend bias\n  if (trend === \"bullish\") score += 1;\n  if (trend === \"bearish\") score -= 1;\n\n  // 2️⃣ RSI momentum\n  if (d.rsi_state === \"bullish_momentum\") score += 1;\n  if (d.rsi_state === \"weak_bearish_momentum\") score -= 1;\n  if (d.rsi_state === \"overbought\") score -= 1;\n  if (d.rsi_state === \"oversold\") score += 1;\n\n  // 3️⃣ MA strength\n  if (d.trend_strength_score != null) {\n    if (d.trend_strength_score > 5) score += 1;\n    if (d.trend_strength_score < -5) score -= 1;\n  }\n\n  // 4️⃣ Volatility expansion bias\n  if (d.volatility_regime === \"high\") {\n    if (trend === \"bullish\") score += 1;\n    if (trend === \"bearish\") score -= 1;\n  }\n\n  // Clamp score between -3 and +3\n  if (score > 3) score = 3;\n  if (score < -3) score = -3;\n\n  // Classification label\n  let pressure_label = \"neutral_pressure\";\n  if (score >= 2) pressure_label = \"strong_bullish_pressure\";\n  if (score === 1) pressure_label = \"mild_bullish_pressure\";\n  if (score <= -2) pressure_label = \"strong_bearish_pressure\";\n  if (score === -1) pressure_label = \"mild_bearish_pressure\";\n\n  return {\n    json: {\n      ...item.json,\n      data: {\n        ...d,\n        market_pressure_score: score,\n        market_pressure_state: pressure_label\n      }\n    }\n  };\n\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        0
+      ],
+      "id": "42e13f49-c235-432b-9675-ff2de65612a6",
+      "name": "Deterministic Pressure Engine"
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n\n  const d = item.json.data || {};\n\n  /* -------------------------\n     RSI CATEGORY (5 levels)\n  --------------------------*/\n  let rsi_category = \"Unknown\";\n  if (typeof d.rsi === \"number\") {\n    if (d.rsi <= 20) rsi_category = \"Extreme_Oversold\";\n    else if (d.rsi <= 35) rsi_category = \"Oversold\";\n    else if (d.rsi < 65) rsi_category = \"Neutral\";\n    else if (d.rsi < 80) rsi_category = \"Overbought\";\n    else rsi_category = \"Extreme_Overbought\";\n  }\n\n\n  /* -------------------------\n     VOLATILITY CATEGORY\n  --------------------------*/\n  let volatility_category = \"Unknown\";\n  if (typeof d.volatility === \"number\") {\n    if (d.volatility <= 1) volatility_category = \"Very_Low\";\n    else if (d.volatility <= 3) volatility_category = \"Low\";\n    else if (d.volatility <= 6) volatility_category = \"Medium\";\n    else if (d.volatility <= 10) volatility_category = \"High\";\n    else volatility_category = \"Very_High\";\n  }\n\n\n  /* -------------------------\n     TREND STRENGTH CATEGORY\n  --------------------------*/\n  let trend_strength_category = \"Unknown\";\n  if (typeof d.trend_strength_score === \"number\") {\n    if (d.trend_strength_score <= 2) trend_strength_category = \"Very_Weak\";\n    else if (d.trend_strength_score <= 4) trend_strength_category = \"Weak\";\n    else if (d.trend_strength_score <= 6) trend_strength_category = \"Moderate\";\n    else if (d.trend_strength_score <= 8) trend_strength_category = \"Strong\";\n    else trend_strength_category = \"Very_Strong\";\n  }\n\n\n  /* -------------------------\n     PRICE VS MA7 CATEGORY\n  --------------------------*/\n  let price_vs_ma7_category = \"Unknown\";\n  if (typeof d.price_vs_ma7_percent === \"number\") {\n    if (d.price_vs_ma7_percent <= -5) price_vs_ma7_category = \"Far_Below_MA\";\n    else if (d.price_vs_ma7_percent <= -1) price_vs_ma7_category = \"Below_MA\";\n    else if (d.price_vs_ma7_percent < 1) price_vs_ma7_category = \"Near_MA\";\n    else if (d.price_vs_ma7_percent < 5) price_vs_ma7_category = \"Above_MA\";\n    else price_vs_ma7_category = \"Far_Above_MA\";\n  }\n\n\n  /* -------------------------\n     DAILY PERCENT CHANGE CATEGORY\n  --------------------------*/\n  let pct_change_category = \"Unknown\";\n  if (typeof d.pct_change === \"number\") {\n    if (d.pct_change <= -5) pct_change_category = \"Strong_Down\";\n    else if (d.pct_change <= -1) pct_change_category = \"Mild_Down\";\n    else if (d.pct_change < 1) pct_change_category = \"Flat\";\n    else if (d.pct_change < 5) pct_change_category = \"Mild_Up\";\n    else pct_change_category = \"Strong_Up\";\n  }\n\n\n  /* -------------------------\n     DOMINANCE CATEGORY\n  --------------------------*/\n  let dominance_category = \"Unknown\";\n  if (typeof d.dominance_ratio === \"number\") {\n    if (d.dominance_ratio <= 0.01) dominance_category = \"Very_Low\";\n    else if (d.dominance_ratio <= 0.03) dominance_category = \"Low\";\n    else if (d.dominance_ratio <= 0.08) dominance_category = \"Medium\";\n    else if (d.dominance_ratio <= 0.15) dominance_category = \"High\";\n    else dominance_category = \"Very_High\";\n  }\n\n\n  /* -------------------------\n     VOLUME SPIKE CATEGORY\n  --------------------------*/\n  let volume_spike_category = \"None\";\n  if (typeof d.volume_spike === \"number\") {\n    if (d.volume_spike <= 10) volume_spike_category = \"Low\";\n    else if (d.volume_spike <= 25) volume_spike_category = \"Moderate\";\n    else if (d.volume_spike <= 50) volume_spike_category = \"Strong\";\n    else volume_spike_category = \"Extreme\";\n  }\n\n\n  /* -------------------------\n     EMBEDDING CONTEXT\n  --------------------------*/\n\n  const embedding_context = {\n    trend_direction: item.json.trend_direction || \"Unknown\",\n    rsi_category,\n    volatility_category,\n    trend_strength_category,\n    price_vs_ma7_category,\n    pct_change_category,\n    dominance_category,\n    volume_spike_category,\n    rsi_state: d.rsi_state || \"Unknown\",\n    volatility_regime: d.volatility_regime || \"Unknown\",\n    stretch_state: d.stretch_state || \"Unknown\",\n    market_pressure_state: d.market_pressure_state || \"Unknown\",\n    bullish_cross: d.bullish_cross ?? false,\n    bearish_cross: d.bearish_cross ?? false\n  };\n\n\n  return {\n    json: {\n      ...item.json,\n      categorized: {\n        rsi_category,\n        volatility_category,\n        trend_strength_category,\n        price_vs_ma7_category,\n        pct_change_category,\n        dominance_category,\n        volume_spike_category\n      },\n      embedding_context\n    }\n  };\n\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "08d9549d-9239-4cb6-b161-2d1ace7f4a0b",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n\n  const d = item.json.data || {};\n\n  /* -------------------------\n     RSI CATEGORY (5 levels)\n  --------------------------*/\n  let rsi_category = \"Unknown\";\n  if (typeof d.rsi === \"number\") {\n    if (d.rsi <= 20) rsi_category = \"Extreme_Oversold\";\n    else if (d.rsi <= 35) rsi_category = \"Oversold\";\n    else if (d.rsi < 65) rsi_category = \"Neutral\";\n    else if (d.rsi < 80) rsi_category = \"Overbought\";\n    else rsi_category = \"Extreme_Overbought\";\n  }\n\n\n  /* -------------------------\n     VOLATILITY CATEGORY\n  --------------------------*/\n  let volatility_category = \"Unknown\";\n  if (typeof d.volatility === \"number\") {\n    if (d.volatility <= 1) volatility_category = \"Very_Low\";\n    else if (d.volatility <= 3) volatility_category = \"Low\";\n    else if (d.volatility <= 6) volatility_category = \"Medium\";\n    else if (d.volatility <= 10) volatility_category = \"High\";\n    else volatility_category = \"Very_High\";\n  }\n\n\n  /* -------------------------\n     TREND STRENGTH CATEGORY\n  --------------------------*/\n  let trend_strength_category = \"Unknown\";\n  if (typeof d.trend_strength_score === \"number\") {\n    if (d.trend_strength_score <= 2) trend_strength_category = \"Very_Weak\";\n    else if (d.trend_strength_score <= 4) trend_strength_category = \"Weak\";\n    else if (d.trend_strength_score <= 6) trend_strength_category = \"Moderate\";\n    else if (d.trend_strength_score <= 8) trend_strength_category = \"Strong\";\n    else trend_strength_category = \"Very_Strong\";\n  }\n\n\n  /* -------------------------\n     PRICE VS MA7 CATEGORY\n  --------------------------*/\n  let price_vs_ma7_category = \"Unknown\";\n  if (typeof d.price_vs_ma7_percent === \"number\") {\n    if (d.price_vs_ma7_percent <= -5) price_vs_ma7_category = \"Far_Below_MA\";\n    else if (d.price_vs_ma7_percent <= -1) price_vs_ma7_category = \"Below_MA\";\n    else if (d.price_vs_ma7_percent < 1) price_vs_ma7_category = \"Near_MA\";\n    else if (d.price_vs_ma7_percent < 5) price_vs_ma7_category = \"Above_MA\";\n    else price_vs_ma7_category = \"Far_Above_MA\";\n  }\n\n\n  /* -------------------------\n     DAILY PERCENT CHANGE CATEGORY\n  --------------------------*/\n  let pct_change_category = \"Unknown\";\n  if (typeof d.pct_change === \"number\") {\n    if (d.pct_change <= -5) pct_change_category = \"Strong_Down\";\n    else if (d.pct_change <= -1) pct_change_category = \"Mild_Down\";\n    else if (d.pct_change < 1) pct_change_category = \"Flat\";\n    else if (d.pct_change < 5) pct_change_category = \"Mild_Up\";\n    else pct_change_category = \"Strong_Up\";\n  }\n\n\n  /* -------------------------\n     DOMINANCE CATEGORY\n  --------------------------*/\n  let dominance_category = \"Unknown\";\n  if (typeof d.dominance_ratio === \"number\") {\n    if (d.dominance_ratio <= 0.01) dominance_category = \"Very_Low\";\n    else if (d.dominance_ratio <= 0.03) dominance_category = \"Low\";\n    else if (d.dominance_ratio <= 0.08) dominance_category = \"Medium\";\n    else if (d.dominance_ratio <= 0.15) dominance_category = \"High\";\n    else dominance_category = \"Very_High\";\n  }\n\n\n  /* -------------------------\n     VOLUME SPIKE CATEGORY\n  --------------------------*/\n  let volume_spike_category = \"None\";\n  if (typeof d.volume_spike === \"number\") {\n    if (d.volume_spike <= 10) volume_spike_category = \"Low\";\n    else if (d.volume_spike <= 25) volume_spike_category = \"Moderate\";\n    else if (d.volume_spike <= 50) volume_spike_category = \"Strong\";\n    else volume_spike_category = \"Extreme\";\n  }\n\n\n  /* -------------------------\n     EMBEDDING CONTEXT\n  --------------------------*/\n\n  const embedding_context = {\n    trend_direction: item.json.trend_direction || \"Unknown\",\n    rsi_category,\n    volatility_category,\n    trend_strength_category,\n    price_vs_ma7_category,\n    pct_change_category,\n    dominance_category,\n    volume_spike_category,\n    rsi_state: d.rsi_state || \"Unknown\",\n    volatility_regime: d.volatility_regime || \"Unknown\",\n    stretch_state: d.stretch_state || \"Unknown\",\n    market_pressure_state: d.market_pressure_state || \"Unknown\",\n    bullish_cross: d.bullish_cross ?? false,\n    bearish_cross: d.bearish_cross ?? false\n  };\n\n\n  return {\n    json: {\n      ...item.json,\n      categorized: {\n        rsi_category,\n        volatility_category,\n        trend_strength_category,\n        price_vs_ma7_category,\n        pct_change_category,\n        dominance_category,\n        volume_spike_category\n      },\n      embedding_context\n    }\n  };\n\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        0
+      ],
+      "id": "41283e7b-45e0-4342-bc73-2aeeb800c9ab",
+      "name": "Code in JavaScript1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Execute a SQL query": {
+      "main": [
+        [
+          {
+            "node": "get rsi clasification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get rsi clasification": {
+      "main": [
+        [
+          {
+            "node": "Trend-Direction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stretch + Classification": {
+      "main": [
+        [
+          {
+            "node": "primary trigger",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "primary trigger": {
+      "main": [
+        [
+          {
+            "node": "trend_strength_score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "trend_strength_score": {
+      "main": [
+        [
+          {
+            "node": "Deterministic Pressure Engine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retreive-Trade-Symbol": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trend-Direction": {
+      "main": [
+        [
+          {
+            "node": "volatility_regime",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "volatility_regime": {
+      "main": [
+        [
+          {
+            "node": "Stretch + Classification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Retreive-Trade-Symbol",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deterministic Pressure Engine": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "112b2a82-8b2f-4c15-8dfb-ffd8481d62fc",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "99f8c50ed3de66be5a87b2eda897b96771bb423ac49e5b33cd90d2b6bae8b0fb"
+  },
+  "id": "4ecekl9UO8ruvdrl",
+  "tags": []
+}

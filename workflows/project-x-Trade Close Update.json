@@ -1,0 +1,96 @@
+{
+  "name": "project-x-Trade Close Update",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n\n  const data = item.json;\n\n  // get id from nested trade object\n  const rawId = data.trade?.order_id || \"\";\n\n  // remove all non-digits (keeps only numbers)\n  const cleanId = rawId.replace(/\\D/g, \"\");\n\n  return {\n    json: {\n      id: cleanId,\n      payload: {\n        exit_price: data.exit_price,\n        exit_timestamp: data.exit_timestamp,\n        pnl_usdt: data.pnl_usdt,\n        pnl_percent: data.pnl_percent,\n        result: data.result,\n        exit_reason: data.exit_reason,\n        holding_time_minutes: data.holding_time_minutes,\n        rr_realized: data.rr_realized\n      }\n    }\n  };\n\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        288,
+        80
+      ],
+      "id": "d05c2644-a141-4560-82c3-cafd38596305",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "resource": "payload",
+        "operation": "setPayload",
+        "collectionName": {
+          "__rl": true,
+          "value": "trade-sentiment",
+          "mode": "list",
+          "cachedResultName": "trade-sentiment"
+        },
+        "payload": "={{ $json.payload.toJsonString() }}",
+        "points": "=[{{ $json.id }}]",
+        "requestOptions": {}
+      },
+      "type": "n8n-nodes-qdrant.qdrant",
+      "typeVersion": 1,
+      "position": [
+        480,
+        80
+      ],
+      "id": "c967951f-7664-42ae-9be5-8f1b10aacf69",
+      "name": "Set Payload",
+      "credentials": {
+        "qdrantRestApi": {
+          "id": "LAi0bjserpFufaCa",
+          "name": "Qdrant account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        32,
+        80
+      ],
+      "id": "e1f42bed-b8d8-4895-9c67-d43ee7a88966",
+      "name": "When Executed by Another Workflow"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Set Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "afb8d066-5955-4f7b-ae82-c2a8917b3196",
+  "meta": {
+    "instanceId": "99f8c50ed3de66be5a87b2eda897b96771bb423ac49e5b33cd90d2b6bae8b0fb"
+  },
+  "id": "6FeEHf40UDv6Haj1",
+  "tags": []
+}

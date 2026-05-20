@@ -1,0 +1,268 @@
+{
+  "name": "project-x-News Sentiment Extraction",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "// 1. Get the incoming object\nconst input = $input.first().json;\n\n// 2. Extract articles array\nconst articles = input.articles || input;\n\n// 3. Return each article with required fields\nreturn articles.map(article => ({\n  json: {\n    title: article.title,\n    description: article.description,\n    source: article.source?.name || null,\n    url: article.url || null,\n    published_at: article.publishedAt || null\n  }\n}));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        112
+      ],
+      "id": "2e38f73c-d0e5-42ff-aea2-50f66c8500ef",
+      "name": "Filter Articles Details"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  {\n    json: {\n      pair: ($input.first().json.trade?.pair ?? $input.first().json.pair)\n        .replace(/USDT$/i, \"\")\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        16,
+        112
+      ],
+      "id": "2ee22090-ba36-4f70-8d62-cfa3f83599fe",
+      "name": "Retreive-Trade-Symbol"
+    },
+    {
+      "parameters": {
+        "url": "http://newsapi.org/v2/everything",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "={{ $json.pair }}"
+            },
+            {
+              "name": "from",
+              "value": "={{ new Date(Date.now()-1*24*60*60*1000).toISOString().split('T')[0] }}"
+            },
+            {
+              "name": "sortBy",
+              "value": "popularity"
+            },
+            {
+              "name": "apiKey",
+              "value": "926d085ce6e84965a4492ababde02516"
+            },
+            {
+              "name": "language",
+              "value": "en"
+            },
+            {
+              "name": "pageSize",
+              "value": "10"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        192,
+        112
+      ],
+      "id": "04f71c2c-3314-458e-aca1-397814615010",
+      "name": "Raw-Sentiment-Data"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "llama-3.2-3b-instruct",
+          "mode": "list",
+          "cachedResultName": "LLAMA-3.2-3B-INSTRUCT"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "=You are a deterministic cryptocurrency market impact classification engine operating inside an automated pipeline.\n\nYour task is to evaluate ONE article at a time.\n\nYou must strictly follow scoring calibration rules.\n\nSCORING CALIBRATION\n\nShort Term (hours–days):\n0.0–0.2 = strong bearish catalyst\n0.3–0.4 = mild bearish\n0.45–0.55 = neutral\n0.6–0.7 = mild bullish\n0.8–1.0 = strong bullish catalyst (rare)\n\nLong Term (months–years):\nOnly structural events may exceed 0.7:\n\nregulatory framework change\n\nETF approval\n\nsovereign adoption\n\nmajor monetary shift\n\nNarratives, opinions, or bottom-calling may NOT exceed 0.65 long-term.\n\nCONFIDENCE RULES\n\nlow → speculative, unclear, or opinion-based\nmoderate → clear directional signal\nhigh → objective structural catalyst\n\nCLASSIFY primary_driver from this fixed list ONLY:\n\n[ETF_FLOWS, INSTITUTIONAL_ADOPTION, REGULATION_POSITIVE, REGULATION_NEGATIVE, MACRO_LIQUIDITY, MONETARY_POLICY, MINER_ACTIVITY, WHALE_ACTIVITY, MARKET_STRUCTURE, DERIVATIVES_POSITIONING, TREASURY_ACTIVITY, LEGAL_EVENT, TECHNICAL_SIGNAL, RISK_OFF_MACRO, NARRATIVE_SPECULATION]\n\nCALIBRATION EXAMPLES\n\nExample 1 – ETF Approval\n\nInput: \"SEC approves spot Bitcoin ETF.\"\n\nOutput:\n{\n\"short_term_score\": 0.9,\n\"long_term_score\": 0.9,\n\"confidence\": \"high\",\n\"primary_driver\": \"ETF_FLOWS\",\n\"direction\": \"bullish\"\n}\n\nExample 2 – Miner Capitulation Ending\n\nInput: \"Hash Ribbon recovery suggests miner capitulation ending.\"\n\nOutput:\n{\n\"short_term_score\": 0.65,\n\"long_term_score\": 0.55,\n\"confidence\": \"moderate\",\n\"primary_driver\": \"MINER_ACTIVITY\",\n\"direction\": \"bullish\"\n}\n\nExample 3 – Whale Selling During Downtrend\n\nInput: \"Early Bitcoin whale sells $1B BTC as price falls.\"\n\nOutput:\n{\n\"short_term_score\": 0.3,\n\"long_term_score\": 0.4,\n\"confidence\": \"moderate\",\n\"primary_driver\": \"WHALE_ACTIVITY\",\n\"direction\": \"bearish\"\n}\n\nOUTPUT FORMAT (strict JSON only, no explanation, no markdown):\n\n{\n\"short_term_score\": number,\n\"long_term_score\": number,\n\"confidence\": \"low | moderate | high\",\n\"primary_driver\": \"ENUM_VALUE\",\n\"direction\": \"bullish | bearish | neutral\"\n}\n"
+            },
+            {
+              "content": "=Analyze this article for cryptocurrency market impact.\n\nArticle:\nEvaluate the following cryptocurrency-related article.\n\nFocus ONLY on crypto market implications.\n\nIgnore unrelated politics, sports, or general news unless directly affecting crypto markets, regulation, liquidity, monetary policy, institutional adoption, or risk sentiment.\n\nArticle Title:\n{{$json.title}}\n\nArticle Description:\n{{$json.description}}\n\nReturn JSON only.{{ JSON.stringify({\n  title: $json.title,\n  description: $json.description\n}) }}\n\nReturn only JSON."
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        624,
+        256
+      ],
+      "id": "e831bba1-a923-4b27-9d6f-66d792fa255a",
+      "name": "Message a model",
+      "credentials": {
+        "openAiApi": {
+          "id": "mXkDyVzf33CqpYzp",
+          "name": "LM-STUDIO"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// 1️⃣ Extract raw LLM JSON string\nconst rawText = item.json.output?.[0]?.content?.[0]?.text;\n\nif (!rawText) {\n  throw new Error(\"LLM output not found in expected structure.\");\n}\n\n// 2️⃣ Parse LLM output safely\nlet llmData;\n\ntry {\n  llmData = JSON.parse(rawText);\n} catch (e) {\n  throw new Error(\"Failed to parse LLM JSON output\");\n}\n\n// 3️⃣ Get original article metadata\nconst {\n  title = \"Unknown Title\",\n  description = \"\",\n  source = null,\n  url = null,\n  published_at = null\n} = item.json;\n\n// 4️⃣ Extract LLM sentiment fields\nconst {\n  short_term_score,\n  long_term_score,\n  confidence,\n  primary_driver,\n  direction\n} = llmData;\n\n// ---- 5️⃣ Score Band Mapping ----\nfunction getBand(score) {\n  if (score <= 0.2) return \"strong_bearish\";\n  if (score <= 0.4) return \"mild_bearish\";\n  if (score <= 0.55) return \"neutral\";\n  if (score <= 0.7) return \"mild_bullish\";\n  return \"strong_bullish\";\n}\n\nconst short_band = getBand(short_term_score);\nconst long_band = getBand(long_term_score);\n\n// ---- 6️⃣ Structural Flag ----\nconst structuralDrivers = [\n  \"REGULATION_POSITIVE\",\n  \"REGULATION_NEGATIVE\",\n  \"ETF_FLOWS\",\n  \"MONETARY_POLICY\",\n  \"MACRO_LIQUIDITY\",\n  \"INSTITUTIONAL_ADOPTION\"\n];\n\nconst structural_flag = structuralDrivers.includes(primary_driver);\n\n// ---- 7️⃣ Liquidity Flag ----\nconst liquidityDrivers = [\n  \"ETF_FLOWS\",\n  \"MACRO_LIQUIDITY\",\n  \"MONETARY_POLICY\"\n];\n\nconst liquidity_flag = liquidityDrivers.includes(primary_driver);\n\n// ---- 8️⃣ Deterministic Embedding Text ----\nconst vector_text = `\nCRYPTO MARKET SENTIMENT SNAPSHOT\n\nTitle: ${title}\n\nPrimary Driver: ${primary_driver}\nShort Term Direction: ${direction}\nShort Term Score Band: ${short_band}\nLong Term Score Band: ${long_band}\nConfidence Level: ${confidence}\nStructural Impact: ${structural_flag}\nLiquidity Relevant: ${liquidity_flag}\n\nArticle Context:\n${description || \"No description provided.\"}\n`.trim();\n\n// ---- 9️⃣ Flat Payload (Qdrant optimized) ----\nconst payload = {\n  title,\n  source,\n  url,\n  published_at,\n  primary_driver,\n  direction,\n  short_term_score,\n  long_term_score,\n  short_term_band: short_band,\n  long_term_band: long_band,\n  confidence,\n  structural_flag,\n  liquidity_flag\n};\n\n// ---- 🔟 Stable Deterministic ID ----\n\n// Clean URL (remove tracking & consent redirects)\nfunction cleanUrl(rawUrl) {\n  if (!rawUrl) return null;\n\n  if (rawUrl.includes(\"consent.yahoo.com\")) return null;\n\n  try {\n    const urlObj = new URL(rawUrl);\n    urlObj.search = \"\"; // remove tracking parameters\n    return urlObj.toString();\n  } catch (e) {\n    return rawUrl;\n  }\n}\n\n// Simple deterministic hash function\nfunction hashString(str) {\n  let hash = 0;\n  for (let i = 0; i < str.length; i++) {\n    const char = str.charCodeAt(i);\n    hash = ((hash << 5) - hash) + char;\n    hash |= 0;\n  }\n  return Math.abs(hash).toString();\n}\n\nconst cleanedUrl = cleanUrl(url);\n\n// Prefer cleaned URL for ID, fallback to title + date\nconst stableId = cleanedUrl\n  ? hashString(cleanedUrl)\n  : hashString((title || \"\") + (published_at || \"\"));\n\n// ---- 11️⃣ Return Qdrant-ready object ----\nreturn {\n  json: {\n    id: stableId,\n    vector_text,\n    payload\n  }\n};\n\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        128
+      ],
+      "id": "a4f1c84c-263d-45db-829e-27e75aec5951",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -208,
+        112
+      ],
+      "id": "16ef308d-c443-4a38-968b-0f1133a12eea",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "jsCode": "if (items.length === 0) {\n  throw new Error(\"No sentiment items received for aggregation.\");\n}\n\n// ---- 1️⃣ Aggregate ----\nlet shortSum = 0;\nlet longSum = 0;\n\nlet bullish = 0;\nlet bearish = 0;\nlet neutral = 0;\n\nconst driverCount = {};\nconst confidenceCount = { low: 0, moderate: 0, high: 0 };\n\nfor (const item of items) {\n  const p = item.json.payload;\n\n  shortSum += p.short_term_score;\n  longSum += p.long_term_score;\n\n  if (p.direction === \"bullish\") bullish++;\n  else if (p.direction === \"bearish\") bearish++;\n  else neutral++;\n\n  driverCount[p.primary_driver] =\n    (driverCount[p.primary_driver] || 0) + 1;\n\n  confidenceCount[p.confidence] =\n    (confidenceCount[p.confidence] || 0) + 1;\n}\n\nconst count = items.length;\n\nconst short_term_avg = parseFloat((shortSum / count).toFixed(4));\nconst long_term_avg = parseFloat((longSum / count).toFixed(4));\nconst divergence = parseFloat(\n  Math.abs(short_term_avg - long_term_avg).toFixed(4)\n);\n\n// ---- 2️⃣ Score → Band Text ----\nfunction band(score) {\n  if (score <= 0.2) return \"strong_bearish\";\n  if (score <= 0.4) return \"mild_bearish\";\n  if (score <= 0.55) return \"neutral\";\n  if (score <= 0.7) return \"mild_bullish\";\n  return \"strong_bullish\";\n}\n\nconst short_band = band(short_term_avg);\nconst long_band = band(long_term_avg);\n\n// ---- 3️⃣ Dominant Driver ----\nlet dominant_driver = null;\nlet maxDriverCount = 0;\n\nfor (const driver in driverCount) {\n  if (driverCount[driver] > maxDriverCount) {\n    dominant_driver = driver;\n    maxDriverCount = driverCount[driver];\n  }\n}\n\n// ---- 4️⃣ Aggregate Confidence ----\nlet final_confidence = \"low\";\n\nif (confidenceCount.high > count * 0.5) {\n  final_confidence = \"high\";\n} else if (\n  confidenceCount.moderate + confidenceCount.high >\n  count * 0.5\n) {\n  final_confidence = \"moderate\";\n}\n\n// ---- 5️⃣ Regime Label ----\nfunction regimeBand(score) {\n  if (score <= 0.4) return \"neg\";\n  if (score >= 0.6) return \"pos\";\n  return \"neu\";\n}\n\nconst regime = `Short_${regimeBand(short_term_avg)}_Long_${regimeBand(long_term_avg)}`;\n\n// ---- 6️⃣ Return Clean Sentiment Snapshot ----\nreturn [\n  {\n    json: {\n      sentiment_snapshot: {\n        article_count: count,\n        short_term_avg,\n        long_term_avg,\n        short_term_band: short_band,\n        long_term_band: long_band,\n        divergence,\n        bullish_count: bullish,\n        bearish_count: bearish,\n        neutral_count: neutral,\n        dominant_driver,\n        regime,\n        confidence: final_confidence\n      }\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1424,
+        128
+      ],
+      "id": "6d54af39-fcc5-402f-ba25-b97922ea47f9",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1008,
+        128
+      ],
+      "id": "939f2af9-bc31-46d7-bc78-a1f9d15b1503",
+      "name": "Merge"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Retreive-Trade-Symbol": {
+      "main": [
+        [
+          {
+            "node": "Raw-Sentiment-Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Raw-Sentiment-Data": {
+      "main": [
+        [
+          {
+            "node": "Filter Articles Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Articles Details": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Retreive-Trade-Symbol",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "111f231a-a3b4-429e-9708-efc1d8075fc3",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "99f8c50ed3de66be5a87b2eda897b96771bb423ac49e5b33cd90d2b6bae8b0fb"
+  },
+  "id": "wMoJhVjZlbMsue5W",
+  "tags": []
+}

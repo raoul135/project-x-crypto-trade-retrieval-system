@@ -1,0 +1,746 @@
+{
+  "name": "Project-X Coordinator Workflow & GDPR Gate",
+  "nodes": [
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "cond-01",
+              "leftValue": "={{ $json.trade_id }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            },
+            {
+              "id": "cond-02",
+              "leftValue": "={{ $json.timestamp }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            },
+            {
+              "id": "cond-03",
+              "leftValue": "={{ $json.pair }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            },
+            {
+              "id": "cond-04",
+              "leftValue": "={{ $json.position_side }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            },
+            {
+              "id": "cond-05",
+              "leftValue": "={{ $json.order_type }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            },
+            {
+              "id": "cond-06",
+              "leftValue": "={{ $json.strategy }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "8347ae61-530e-4899-bd93-38b6968c600b",
+      "name": "Zijn Verplichte Trade Velden Aanwezig?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -976,
+        464
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "set-01",
+              "name": "resultaat",
+              "value": "volledig",
+              "type": "string"
+            },
+            {
+              "id": "set-02",
+              "name": "ontbrekende_velden",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "set-03",
+              "name": "actie",
+              "value": "intake_validatie",
+              "type": "string"
+            },
+            {
+              "id": "set-04",
+              "name": "workflow_source",
+              "value": "coordinator",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "1fbfc01a-6346-43a2-83e6-57919de325ff",
+      "name": "Volledige Trade",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -592,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "value": "6Dp4CuNRUj277Zip",
+          "mode": "list",
+          "cachedResultName": "pii",
+          "cachedResultUrl": "/projects/VwsCJQO28e2BHLbF/datatables/6Dp4CuNRUj277Zip"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "user_id",
+              "keyValue": "={{ $json.user_id }}"
+            },
+            {
+              "keyName": "email",
+              "keyValue": "={{ $json.email }}"
+            },
+            {
+              "keyName": "wallet_address",
+              "keyValue": "={{ $json.wallet_address }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "user_id": "={{ $json.user_id }}",
+            "email": "={{ $json.email }}",
+            "wallet_address": "={{ $json.wallet_address }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "user_id",
+              "displayName": "user_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "wallet_address",
+              "displayName": "wallet_address",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "a38db065-7315-45e2-a525-13b236aaff98",
+      "name": "Log PII Volledig",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        16,
+        256
+      ]
+    },
+    {
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "value": "Gfqd6Io3tf5NVFPP",
+          "mode": "list",
+          "cachedResultName": "audit",
+          "cachedResultUrl": "/projects/VwsCJQO28e2BHLbF/datatables/Gfqd6Io3tf5NVFPP"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "user_id": "={{ $json.user_id }}",
+            "pair": "={{ $json.trade.pair }}",
+            "subject": "={{ $json.subject }}",
+            "actie": "={{ $json.actie }}",
+            "resultaat": "={{ $json.resultaat }}",
+            "ontbrekende_velden": "={{ $json.ontbrekende_velden }}",
+            "workflow_source": "={{ $json.workflow_source }}",
+            "trade_id": "={{ $json.trade.order_id }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "trade_id",
+              "displayName": "trade_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "user_id",
+              "displayName": "user_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "pair",
+              "displayName": "pair",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "subject",
+              "displayName": "subject",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "actie",
+              "displayName": "actie",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "resultaat",
+              "displayName": "resultaat",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "ontbrekende_velden",
+              "displayName": "ontbrekende_velden",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "workflow_source",
+              "displayName": "workflow_source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "a3307179-7550-45ba-9da8-4835831e4929",
+      "name": "Log Audit Volledig",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        16,
+        464
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "Q6lALi55mlcHuiCh",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/Q6lALi55mlcHuiCh",
+          "cachedResultName": "Project-x-Trade Ingestion Workflow"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "id": "780da761-3a48-40f2-8532-156d7d241502",
+      "name": "Call Project-x-Trade Ingestion Workflow",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        304,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "value": "6Dp4CuNRUj277Zip",
+          "mode": "list",
+          "cachedResultName": "pii",
+          "cachedResultUrl": "/projects/VwsCJQO28e2BHLbF/datatables/6Dp4CuNRUj277Zip"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "user_id",
+              "keyValue": "={{ $json.user_id }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "user_id": "={{ $json.user_id }}",
+            "email": "={{ $json.email }}",
+            "wallet_address": "={{ $json.wallet_address }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "user_id",
+              "displayName": "user_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "wallet_address",
+              "displayName": "wallet_address",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "8f9230b9-34d2-4330-a7ca-d0f6c71408fe",
+      "name": "Log PII Onvolledig",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        32,
+        688
+      ]
+    },
+    {
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "value": "Gfqd6Io3tf5NVFPP",
+          "mode": "list",
+          "cachedResultName": "audit",
+          "cachedResultUrl": "/projects/VwsCJQO28e2BHLbF/datatables/Gfqd6Io3tf5NVFPP"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "trade_id": "={{ $json.trade_id }}",
+            "user_id": "={{ $json.user_id }}",
+            "pair": "={{ $json.pair }}",
+            "subject": "={{ $json.subject }}",
+            "actie": "={{ $json.actie }}",
+            "resultaat": "={{ $json.resultaat }}",
+            "ontbrekende_velden": "={{ $json.ontbrekende_velden }}",
+            "workflow_source": "={{ $json.workflow_source }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "trade_id",
+              "displayName": "trade_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "user_id",
+              "displayName": "user_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "pair",
+              "displayName": "pair",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "subject",
+              "displayName": "subject",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "actie",
+              "displayName": "actie",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "resultaat",
+              "displayName": "resultaat",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "ontbrekende_velden",
+              "displayName": "ontbrekende_velden",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "workflow_source",
+              "displayName": "workflow_source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "456d0b27-f653-4851-aeb0-eb4fe24738b2",
+      "name": "Log Audit Onvolledig",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        32,
+        880
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "trade",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1568,
+        464
+      ],
+      "id": "0c6b3a58-9d8f-4741-9ffe-1d01e34590ae",
+      "name": "Webhook",
+      "webhookId": "78912e8b-644d-490f-a561-5dfc545e2e7e"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.item.json;\n\n// If data comes from Webhook, use raw.body.\n// If data comes from Manual Trigger/pinned data, use raw directly.\nconst item = raw.body ?? raw;\n\nconst user_id = item.user_id ?? null;\nconst email = item.email ?? null;\nconst wallet_address = item.wallet_address ?? null;\n\nconst subject = item.subject ?? null;\nconst timestamp = item.timestamp ?? null;\n\nconst pair = item.trade?.pair?.toUpperCase() ?? null;\nconst position_side = item.trade?.position_side?.toUpperCase() ?? null;\nconst order_type = item.trade?.order_type ?? null;\nconst order_id = item.trade?.order_id ?? null;\nconst exchange = item.trade?.exchange ?? null;\n\nconst strategy = item.bot_metadata?.strategy ?? null;\nconst version = item.bot_metadata?.version ?? null;\nconst risk_level = item.bot_metadata?.risk_level ?? null;\n\nconst trade_id = order_id ?? `TRADE-${Date.now()}`;\n\nreturn [{\n  json: {\n    ...item,\n    trade_id,\n    user_id,\n    email,\n    wallet_address,\n    subject,\n    timestamp,\n    pair,\n    position_side,\n    order_type,\n    order_id,\n    exchange,\n    strategy,\n    version,\n    risk_level\n  }\n}];"
+      },
+      "id": "30e35d15-538d-4e87-9da4-03e0a5cc9279",
+      "name": "Normalize Input + Generate IDs1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1232,
+        464
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $json;\n\nconst required = {\n  trade_id: d.trade_id,\n  timestamp: d.timestamp,\n  pair: d.pair,\n  position_side: d.position_side,\n  order_type: d.order_type,\n  strategy: d.strategy\n};\n\nconst ontbrekend = Object.entries(required)\n  .filter(([_, value]) => value === null || value === undefined || value === '')\n  .map(([key]) => key);\n\nreturn [{\n  json: {\n    ...d,\n    resultaat: 'onvolledig',\n    actie: 'intake_validatie',\n    workflow_source: 'coordinator',\n    ontbrekende_velden: ontbrekend.join(', ')\n  }\n}];"
+      },
+      "id": "9852b869-607b-42ad-9843-294fd821fb43",
+      "name": "Ontbrekende Velden",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -592,
+        656
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "prep-01",
+              "name": "trade_id",
+              "value": "={{ $json.trade_id }}",
+              "type": "string"
+            },
+            {
+              "id": "prep-02",
+              "name": "user_id",
+              "value": "={{ $json.user_id }}",
+              "type": "string"
+            },
+            {
+              "id": "prep-03",
+              "name": "subject",
+              "value": "={{ $json.subject }}",
+              "type": "string"
+            },
+            {
+              "id": "prep-04",
+              "name": "timestamp",
+              "value": "={{ $json.timestamp }}",
+              "type": "string"
+            },
+            {
+              "id": "prep-05",
+              "name": "trade",
+              "value": "={{ $json.trade }}",
+              "type": "object"
+            },
+            {
+              "id": "prep-06",
+              "name": "risk_management",
+              "value": "={{ $json.risk_management }}",
+              "type": "object"
+            },
+            {
+              "id": "prep-07",
+              "name": "technical_conditions",
+              "value": "={{ $json.technical_conditions }}",
+              "type": "object"
+            },
+            {
+              "id": "prep-08",
+              "name": "bot_metadata",
+              "value": "={{ $json.bot_metadata }}",
+              "type": "object"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "435b8294-a84e-45a7-a1f1-18bf96df0efd",
+      "name": "Prepare Non-PII Payload for Ingestion",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        16,
+        0
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Zijn Verplichte Trade Velden Aanwezig?": {
+      "main": [
+        [
+          {
+            "node": "Volledige Trade",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Ontbrekende Velden",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Volledige Trade": {
+      "main": [
+        [
+          {
+            "node": "Log PII Volledig",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log Audit Volledig",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prepare Non-PII Payload for Ingestion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Normalize Input + Generate IDs1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Input + Generate IDs1": {
+      "main": [
+        [
+          {
+            "node": "Zijn Verplichte Trade Velden Aanwezig?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ontbrekende Velden": {
+      "main": [
+        [
+          {
+            "node": "Log PII Onvolledig",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log Audit Onvolledig",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Non-PII Payload for Ingestion": {
+      "main": [
+        [
+          {
+            "node": "Call Project-x-Trade Ingestion Workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "b426977c-a468-4a8e-9cd1-2f87ae2bb2f6",
+  "meta": {
+    "instanceId": "99f8c50ed3de66be5a87b2eda897b96771bb423ac49e5b33cd90d2b6bae8b0fb"
+  },
+  "id": "gxscvBXsw6CEa5He",
+  "tags": []
+}

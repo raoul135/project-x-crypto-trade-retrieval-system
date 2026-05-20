@@ -1,0 +1,907 @@
+{
+  "name": "project-x-Trade Retrieval Evaluation",
+  "nodes": [
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "query_text",
+              "value": "“Find LONG trades during sideways market conditions with neutral sentiment and narrative-driven setups.”"
+            },
+            {
+              "name": "pair",
+              "value": "BTCUSDT"
+            }
+          ],
+          "number": [
+            {
+              "name": "top_k",
+              "value": 5
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "4675aed1-009f-41aa-bc8a-e32b26fbad36",
+      "name": "Set Query",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        640,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:1234/v1/embeddings",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "input",
+              "value": "={{ $json.query_text }}"
+            },
+            {
+              "name": "model",
+              "value": "text-embedding-bge-m3"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "0c1a2fe3-80f0-4a78-b238-ee13b99f0c06",
+      "name": "Create Embedding",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        784,
+        384
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "mXkDyVzf33CqpYzp",
+          "name": "LM-STUDIO"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  {\n    json: {\n      query_vector: items[0].json.data[0].embedding,\n      pair: $node[\"Set Query\"].json.pair,\n      top_k: $node[\"Set Query\"].json.top_k\n    }\n  }\n];\n\n\n"
+      },
+      "id": "08bc6906-d454-4b09-83fd-ec15166bddea",
+      "name": "Extract Vector",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        992,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://x-qdrant:6333/collections/trade-sentiment/points/search",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"vector\": [{{$json.query_vector}}],\n  \"limit\": 50,\n  \"with_payload\": true,\n  \"with_vector\": false,\n  \"filter\": {\n    \"must\": [\n      {\n        \"key\": \"position_side\",\n        \"match\": { \"value\": \"LONG\" }\n      },\n      {\n        \"key\": \"trend_direction\",\n        \"match\": { \"value\": \"sideways\" }\n      },\n      {\n        \"key\": \"regime\",\n        \"match\": { \"value\": \"Short_neu_Long_neu\" }\n      },\n      {\n        \"key\": \"market_pressure_state\",\n        \"match\": { \"value\": \"neutral_pressure\" }\n      },\n      {\n        \"key\": \"dominant_driver\",\n        \"match\": { \"value\": \"NARRATIVE_SPECULATION\" }\n      }\n    ]\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1248,
+        384
+      ],
+      "id": "c9e56cf7-e512-45c6-a4b9-b904f9ea5eda",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "jsCode": "const trades = $json.result;\n\nconst context = trades.slice(0,5).map((t,i) => {\n  const p = t.payload;\n\n  return `Trade ${i+1}\nstrategy: ${p.strategy}\nposition: ${p.position_side}\ntrend: ${p.trend_direction}\nvolatility: ${p.volatility_category}\npressure: ${p.market_pressure_state}\nrsi: ${p.rsi_state}\nresult: ${p.result || \"open\"}\nscore: ${t.score}`;\n}).join(\"\\n\\n\");\n\nreturn [{\n  json: {\n    query: $node[\"Set Query\"].json.query_text,\n    context: context\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1456,
+        384
+      ],
+      "id": "7025054a-440a-4949-ae73-3ad1eada5c43",
+      "name": "query+context"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $json.output[0].content[0].text;\n\nconst clean = raw.replace(/```json|```/g, \"\").trim();\n\nlet parsed;\n\ntry {\n  parsed = JSON.parse(clean);\n} catch (e) {\n  parsed = {\n    metric: \"unknown\",\n    score: 0,\n    comment: \"parse_error\"\n  };\n}\n\nreturn [{\n  json: {\n    metric: parsed.metric,\n    score: parsed.score,\n    comment: parsed.comment,\n    query: $(\"query+context\").first().json.query,\n    context: $(\"query+context\").first().json.context,\n    pair: $(\"Set Query\").first().json.pair,\n    top_k: $(\"Set Query\").first().json.top_k\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2288,
+        800
+      ],
+      "id": "3f6a1ac4-2f36-4e14-9b0b-2753469f2b44",
+      "name": "Code in JavaScript3"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $json.output[0].content[0].text;\n\nconst clean = raw.replace(/```json|```/g, \"\").trim();\n\nlet parsed;\n\ntry {\n  parsed = JSON.parse(clean);\n} catch (e) {\n  parsed = {\n    metric: \"unknown\",\n    score: 0,\n    comment: \"parse_error\"\n  };\n}\n\nreturn [{\n  json: {\n    metric: parsed.metric,\n    score: parsed.score,\n    comment: parsed.comment,\n    query: $(\"query+context\").first().json.query,\n    context: $(\"query+context\").first().json.context,\n    pair: $(\"Set Query\").first().json.pair,\n    top_k: $(\"Set Query\").first().json.top_k\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2288,
+        192
+      ],
+      "id": "9ac6383b-958c-4c1c-8433-025a2830e9cd",
+      "name": "Code in JavaScript5"
+    },
+    {
+      "parameters": {
+        "numberInputs": 5
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        2784,
+        352
+      ],
+      "id": "011c4dc9-10be-411b-8d8a-ea9941a7acfe",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $json.output[0].content[0].text;\n\nconst clean = raw.replace(/```json|```/g, \"\").trim();\n\nlet parsed;\n\ntry {\n  parsed = JSON.parse(clean);\n} catch (e) {\n  parsed = {\n    metric: \"unknown\",\n    score: 0,\n    comment: \"parse_error\"\n  };\n}\n\nreturn [{\n  json: {\n    metric: parsed.metric,\n    score: parsed.score,\n    comment: parsed.comment,\n    query: $(\"query+context\").first().json.query,\n    context: $(\"query+context\").first().json.context,\n    pair: $(\"Set Query\").first().json.pair,\n    top_k: $(\"Set Query\").first().json.top_k\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2288,
+        0
+      ],
+      "id": "3bb8950c-777e-42ed-ba22-494016f19c89",
+      "name": "Code in JavaScript7"
+    },
+    {
+      "parameters": {
+        "jsCode": "const query = $json.query;\nconst context = $json.context;\n\nconst prompt = `\nYou evaluate vector search retrieval quality.\n\nQuery:\n${query}\n\nRetrieved trades:\n${context}\n\nTask:\nDo the retrieved trades match the query conditions?\n\nReturn ONLY valid JSON.\n\n{\n \"metric\": \"relevance\",\n \"score\": 0-1,\n \"comment\": \"one short sentence\"\n}\n`;\n\nreturn [{\n  json: {\n    prompt: prompt\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1696,
+        0
+      ],
+      "id": "8a1517ee-bc41-4f91-a023-0f34102b8f53",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "jsCode": "const query = $json.query;\nconst context = $json.context;\n\nconst prompt = `\nYou evaluate retrieval precision.\n\nQuery:\n${query}\n\nRetrieved trades:\n${context}\n\nTask:\nDetermine whether the retrieved trades actually contain the features described in the query.\n\nHigh precision means:\nMost retrieved trades match the query conditions.\n\nLow precision means:\nMany retrieved trades do not match the query.\n\nReturn ONLY valid JSON.\n\n{\n \"metric\": \"precision\",\n \"score\": 0-1,\n \"comment\": \"one short sentence\"\n}\n`;\n\nreturn [{\n  json: {\n    prompt: prompt\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1696,
+        192
+      ],
+      "id": "eaa966da-9448-4abc-8bb1-d258eed06504",
+      "name": "set-prompt"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "={{ $json.prompt }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        1920,
+        0
+      ],
+      "id": "520b8845-c05b-4ff3-a6c0-4dd5f894331d",
+      "name": "Relevance",
+      "credentials": {
+        "openAiApi": {
+          "id": "vNCg96Zg1ucVeMWr",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const query = $json.query;\nconst context = $json.context;\n\nconst prompt = `\nYou evaluate retrieval recall for a vector search system.\n\nQuery:\n${query}\n\nRetrieved trades:\n${context}\n\nTask:\nDetermine if the retrieval likely missed other relevant trades.\n\nHigh recall means:\nMost relevant trades appear in the retrieved list.\n\nLow recall means:\nImportant relevant trades are likely missing.\n\nReturn ONLY valid JSON.\n\n{\n \"metric\": \"recall\",\n \"score\": 0-1,\n \"comment\": \"one short sentence\"\n}\n`;\n\nreturn [{\n  json: {\n    prompt: prompt\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1696,
+        384
+      ],
+      "id": "33b80ec3-43bc-42e9-9ab9-d9d425d970d8",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $json.output[0].content[0].text;\n\nconst clean = raw.replace(/```json|```/g, \"\").trim();\n\nlet parsed;\n\ntry {\n  parsed = JSON.parse(clean);\n} catch (e) {\n  parsed = {\n    metric: \"unknown\",\n    score: 0,\n    comment: \"parse_error\"\n  };\n}\n\nreturn [{\n  json: {\n    metric: parsed.metric,\n    score: parsed.score,\n    comment: parsed.comment,\n    query: $(\"query+context\").first().json.query,\n    context: $(\"query+context\").first().json.context,\n    pair: $(\"Set Query\").first().json.pair,\n    top_k: $(\"Set Query\").first().json.top_k\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2288,
+        384
+      ],
+      "id": "b9c49955-20cc-4c70-8ef8-4972a21378de",
+      "name": "Code in JavaScript6"
+    },
+    {
+      "parameters": {
+        "jsCode": "const query = $json.query;\nconst context = $json.context;\n\nconst prompt = `\nYou evaluate faithfulness of an analysis based on retrieved data.\n\nQuery:\n${query}\n\nRetrieved trades:\n${context}\n\nTask:\nDetermine if conclusions about the trades can be directly supported by the retrieved data.\n\nHigh faithfulness:\nReasoning relies only on information visible in the trades.\n\nLow faithfulness:\nThe reasoning assumes information not present in the trades.\n\nReturn ONLY valid JSON.\n\n{\n \"metric\": \"faithfulness\",\n \"score\": 0-1,\n \"comment\": \"one short sentence\"\n}\n`;\n\nreturn [{\n  json: {\n    prompt: prompt\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1696,
+        576
+      ],
+      "id": "794993d0-a90f-4df4-8a27-2cf470943b09",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "={{ $json.prompt }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        1904,
+        576
+      ],
+      "id": "90a10d79-2352-4b94-8f92-c722cf49d5b4",
+      "name": "Faithfulness",
+      "credentials": {
+        "openAiApi": {
+          "id": "vNCg96Zg1ucVeMWr",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "={{ $json.prompt }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        1920,
+        800
+      ],
+      "id": "942af603-f8be-4386-8ea0-80b048b51b31",
+      "name": "Response Relevance",
+      "credentials": {
+        "openAiApi": {
+          "id": "vNCg96Zg1ucVeMWr",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const query = $json.query;\nconst context = $json.context;\n\nconst prompt = `\nYou evaluate whether an analysis answers the user's query.\n\nQuery:\n${query}\n\nRetrieved trades:\n${context}\n\nTask:\nDetermine whether the analysis of the trades would directly answer the query.\n\nHigh response relevance:\nThe analysis directly addresses the query conditions.\n\nLow response relevance:\nThe explanation discusses unrelated trade features.\n\nReturn ONLY valid JSON.\n\n{\n \"metric\": \"response_relevance\",\n \"score\": 0-1,\n \"comment\": \"one short sentence\"\n}\n`;\n\nreturn [{\n  json: {\n    prompt: prompt\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1696,
+        800
+      ],
+      "id": "f4aed29f-5e39-46a2-961e-fa805e043c31",
+      "name": "Code in JavaScript4"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $json.output[0].content[0].text;\n\nconst clean = raw.replace(/```json|```/g, \"\").trim();\n\nlet parsed;\n\ntry {\n  parsed = JSON.parse(clean);\n} catch (e) {\n  parsed = {\n    metric: \"unknown\",\n    score: 0,\n    comment: \"parse_error\"\n  };\n}\n\nreturn [{\n  json: {\n    metric: parsed.metric,\n    score: parsed.score,\n    comment: parsed.comment,\n    query: $(\"query+context\").first().json.query,\n    context: $(\"query+context\").first().json.context,\n    pair: $(\"Set Query\").first().json.pair,\n    top_k: $(\"Set Query\").first().json.top_k\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2288,
+        576
+      ],
+      "id": "aff08d39-049e-4426-9dad-8ee0fc0cc989",
+      "name": "Code in JavaScript8"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        384,
+        384
+      ],
+      "id": "000b67bd-0e0a-41c3-9d50-6210a2acd8c4",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "={{ $json.prompt }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        1920,
+        192
+      ],
+      "id": "62413a23-8cef-45eb-a05a-2c326cf733b8",
+      "name": "precision",
+      "credentials": {
+        "openAiApi": {
+          "id": "vNCg96Zg1ucVeMWr",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "={{ $json.prompt }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        1920,
+        384
+      ],
+      "id": "e01c961f-b0b1-4eb3-8ce5-d74d654637da",
+      "name": "recall",
+      "credentials": {
+        "openAiApi": {
+          "id": "vNCg96Zg1ucVeMWr",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        3296,
+        496
+      ],
+      "id": "66c95507-826a-4a86-8036-4ca53e814c03",
+      "name": "Convert to File"
+    },
+    {
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "value": "65wDkOSbbyaLAaTq",
+          "mode": "list",
+          "cachedResultName": "Ragas-Data",
+          "cachedResultUrl": "/projects/VwsCJQO28e2BHLbF/datatables/65wDkOSbbyaLAaTq"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {
+            "Query_Text": "={{ $json.Query_Text }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Query_Text",
+              "displayName": "Query_Text",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Context",
+              "displayName": "Context",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Pair",
+              "displayName": "Pair",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Top_k",
+              "displayName": "Top_k",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Relevance",
+              "displayName": "Relevance",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Faithfulness",
+              "displayName": "Faithfulness",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Answer_Relevancy",
+              "displayName": "Answer_Relevancy",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Context_Precision",
+              "displayName": "Context_Precision",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Context_Recall",
+              "displayName": "Context_Recall",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Harmfulness",
+              "displayName": "Harmfulness",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false,
+          "mapping": {
+            "Metric": "={{ $json.metric }}",
+            "Score": "={{ $json.score }}",
+            "Comment": "={{ $json.comment }}",
+            "Query": "={{ $json.query }}",
+            "Context": "={{ $json.context }}",
+            "Pair": "={{ $json.pair }}",
+            "Top_k": "={{ $json.top_k }}"
+          }
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        3296,
+        256
+      ],
+      "id": "319233a2-ff51-41b0-98b7-f4046e488301",
+      "name": "Insert row"
+    },
+    {
+      "parameters": {
+        "jsCode": "const itemsArr = items;\n\n// basis info\nconst result = {\n  Query_Text: itemsArr[0].json.query,\n  Context: itemsArr[0].json.context,\n  Pair: itemsArr[0].json.pair,\n  Top_k: itemsArr[0].json.top_k,\n\n  // metrics\n  Relevance: null,\n  Faithfulness: null,\n  Answer_Relevancy: null,\n  Context_Precision: null,\n  Context_Recall: null,\n  Harmfulness: 0\n};\n\n// loop door alle metric items\nfor (const item of itemsArr) {\n  const metric = item.json.metric;\n  const score = parseFloat(item.json.score);\n\n  if (metric === \"relevance\") {\n    result.Relevance = score;\n  }\n\n  if (metric === \"faithfulness\") {\n    result.Faithfulness = score;\n  }\n\n  if (metric === \"response_relevance\") {\n    result.Answer_Relevancy = score;\n  }\n\n  if (metric === \"precision\") {\n    result.Context_Precision = score;\n  }\n\n  if (metric === \"recall\") {\n    result.Context_Recall = score;\n  }\n\n  if (metric === \"harmfulness\") {\n    result.Harmfulness = score;\n  }\n}\n\n// return 1 rij\nreturn [{ json: result }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3008,
+        400
+      ],
+      "id": "27f2a72f-e8ce-44ec-8902-96470b11a954",
+      "name": "Code in JavaScript9"
+    }
+  ],
+  "pinData": {
+    "When clicking ‘Execute workflow’": [
+      {
+        "json": {},
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Set Query": {
+      "main": [
+        [
+          {
+            "node": "Create Embedding",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Embedding": {
+      "main": [
+        [
+          {
+            "node": "Extract Vector",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Vector": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "query+context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "query+context": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "set-prompt",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Code in JavaScript4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript5": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript3": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 4
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript7": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Relevance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "set-prompt": {
+      "main": [
+        [
+          {
+            "node": "precision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Relevance": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "recall",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript6": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Faithfulness": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript8",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "Faithfulness",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Response Relevance": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript4": {
+      "main": [
+        [
+          {
+            "node": "Response Relevance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript8": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 3
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript9",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Set Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "precision": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "recall": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert row": {
+      "main": [
+        []
+      ]
+    },
+    "Code in JavaScript9": {
+      "main": [
+        [
+          {
+            "node": "Insert row",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Convert to File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "13c96c60-c980-4c73-bd2a-868a246f221a",
+  "meta": {
+    "instanceId": "99f8c50ed3de66be5a87b2eda897b96771bb423ac49e5b33cd90d2b6bae8b0fb"
+  },
+  "id": "M5Zis2C8DcV1e2KE",
+  "tags": []
+}
