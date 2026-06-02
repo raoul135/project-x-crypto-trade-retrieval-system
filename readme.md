@@ -14,7 +14,7 @@ Het systeem combineert:
 om historische trade setups sneller, consistenter en schaalbaarder analyseerbaar te maken.
 
 ---
-# 📁 Repository Structuur
+## 📁 Repository Structuur
 
 ```text
 VOORNAAM_ACHTERNAAM_Eindproject/
@@ -46,8 +46,13 @@ VOORNAAM_ACHTERNAAM_Eindproject/
 │   ├── roi-analysis.xlsx
 │   └── leidinggevende-1pager.pdf
 │
+├── video/
+│   └── Project-X-Videdemo.mp4
+│
 └── Trade Input.html
 ```
+
+
 
 # ⚙️ Setup (Docker Desktop GUI)
 
@@ -241,8 +246,65 @@ De retrieval workflows gebruiken semantische vector search en metadata filtering
 
 ---
 
-# 🎥 Demo Video
 
-📎 Voeg hier demo video link toe.
+## 🎥 Demo Video
+
+De demo-video is meegeleverd in deze repository:
+
+📎 `video/Project-X-Videdemo.mp4`
+
+Deze video toont de werking van het systeem, inclusief de belangrijkste workflows, validatie, embedding generation, Qdrant opslag en retrieval-resultaten.
 
 ---
+## Reflectie
+
+Tijdens de ontwikkeling van Project-X werd duidelijk dat het bouwen van een AI-systeem veel verder gaat dan enkel het integreren van een Large Language Model. De grootste uitdaging lag niet in het genereren van antwoorden, maar in het ontwerpen van betrouwbare datastromen, consistente gegevensstructuren en een reproduceerbaar retrievalproces.
+
+Een belangrijke les was het belang van gegevenskwaliteit. Kleine verschillen in de manier waarop trade-context werd opgeslagen hadden een grote invloed op de kwaliteit van de retrieval-resultaten. Daarom werd gekozen voor een gestandaardiseerde "Trade Context Snapshot" waarin numerieke marktgegevens worden omgezet naar betekenisvolle categorieën zoals trendrichting, volatiliteit en RSI-status.
+
+Daarnaast werd duidelijk hoe belangrijk evaluatie is binnen een retrieval-systeem. Het implementeren van afzonderlijke evaluatiemetrics zoals Relevance, Faithfulness, Context Precision, Context Recall en Answer Relevance gaf veel meer inzicht in de werkelijke prestaties van het systeem dan enkel het bekijken van retrieval-scores.
+
+Tot slot heeft dit project het belang aangetoond van privacy-by-design. Door persoonsgegevens volledig te scheiden van embeddings en retrieval-data kon een GDPR-conforme architectuur worden gerealiseerd zonder de functionaliteit van het systeem te beperken.
+
+---
+## Toekomstige Verbeteringen
+
+### Verdere Verhoging van Betrouwbaarheid en Kwaliteit
+
+Project-X is ontwikkeld als een volledig werkende proof-of-concept en referentiearchitectuur voor AI-gestuurde trade retrieval. Het systeem demonstreert succesvol de volledige workflow van data-ingestie, verrijking, sentimentanalyse, vectoropslag, retrieval en evaluatie.
+
+De focus van dit eindproject lag in de eerste plaats op het ontwerpen en implementeren van een werkende end-to-end architectuur. Hoewel het systeem functioneel is, zijn er nog veel mogelijkheden om de kwaliteit, nauwkeurigheid en betrouwbaarheid van de retrieval-resultaten verder te verhogen. Dit is een normaal onderdeel van de levenscyclus van AI-systemen, waarbij prestaties iteratief verbeteren naarmate meer data, evaluaties en optimalisaties beschikbaar komen.
+
+### Verbetering van Retrieval Kwaliteit
+
+Een eerste belangrijke verbetering is het verder optimaliseren van de retrieval-resultaten. Momenteel maakt het systeem gebruik van dense vector retrieval op basis van embeddings. Toekomstige versies kunnen worden uitgebreid met hybride retrieval-technieken waarbij vector search wordt gecombineerd met keyword- of sparse retrieval. Hierdoor kunnen zeer specifieke zoekopdrachten nog nauwkeuriger worden behandeld.
+
+Daarnaast kan de kwaliteit van de resultaten verder worden verhoogd door een grotere historische dataset op te bouwen. Naarmate meer trades worden opgeslagen, krijgt het systeem meer relevante voorbeelden om mee te vergelijken, wat de kwaliteit van de retrieval-resultaten ten goede komt.
+
+### Verbetering van Sentiment Analyse
+
+De huidige sentimentanalyse is gebaseerd op nieuwsartikelen en gestructureerde evaluatiecriteria. In toekomstige versies kan dit worden uitgebreid met extra databronnen zoals social media, marktrapporten en gespecialiseerde crypto-nieuwsplatformen.
+
+Ook kan bronbetrouwbaarheid worden meegenomen in de analyse zodat sentiment afkomstig van kwalitatieve bronnen een grotere invloed krijgt dan sentiment afkomstig van minder betrouwbare bronnen.
+
+### Verbetering van Evaluatie en Monitoring
+
+Momenteel beschikt Project-X over een evaluatieworkflow met verschillende kwaliteitsmetingen zoals Relevance, Faithfulness, Context Precision, Context Recall en Answer Relevance.
+
+Een volgende stap is het volledig automatiseren van kwaliteitsmonitoring zodat prestaties over langere periodes kunnen worden opgevolgd. Hierdoor kunnen trends, degradatie van retrieval-kwaliteit en verbeteringen objectief worden gemeten.
+
+### Verbetering van Schaalbaarheid
+
+Hoewel het huidige systeem ontworpen is voor lokaal gebruik, kan de architectuur verder worden uitgebreid voor grotere datasets en hogere volumes.
+
+Mogelijke uitbreidingen zijn ondersteuning voor meerdere gebruikers, API-gebaseerde toegang, geautomatiseerde verwerking van grotere hoeveelheden data en schaalbare deployment-architecturen waarbij verschillende componenten onafhankelijk van elkaar kunnen worden opgeschaald.
+
+### Uitbreiding van de Kennisbank
+
+Naast historische trades en sentimentdata kan de kennisbank verder worden uitgebreid met aanvullende documentatie zoals marktanalyses, onderzoeksrapporten, trading-handleidingen en technische documentatie.
+
+Hierdoor kan het systeem niet alleen gelijkaardige trades terugvinden, maar ook extra context aanbieden die kan bijdragen aan betere geïnformeerde beslissingen.
+
+### Conclusie
+
+Het huidige Project-X systeem bewijst dat de volledige architectuur technisch werkt en alle kerncomponenten succesvol met elkaar integreert. De belangrijkste toekomstige focus ligt daarom niet op het toevoegen van ontbrekende functionaliteit, maar op het verder verbeteren van de kwaliteit, betrouwbaarheid en prestaties van de bestaande componenten. Hierdoor kan het systeem stap voor stap evolueren van een werkende proof-of-concept naar een steeds robuustere en intelligentere retrieval-oplossing.

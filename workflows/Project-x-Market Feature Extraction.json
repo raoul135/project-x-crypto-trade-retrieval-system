@@ -8,7 +8,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        496,
+        400,
         0
       ],
       "id": "e78f05b9-4af7-4029-9e09-8f0dde2997b8",
@@ -23,7 +23,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        320,
+        224,
         0
       ],
       "id": "eeb5903d-d4b0-48e3-8ece-6d8da7b61e4a",
@@ -42,7 +42,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1040,
+        864,
         0
       ],
       "id": "8a4d2616-4855-4ae4-abe1-d508e73d86d8",
@@ -55,7 +55,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1248,
+        1040,
         0
       ],
       "id": "96431be2-1b75-4aff-8e97-4099c37ed797",
@@ -68,7 +68,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1456,
+        1200,
         0
       ],
       "id": "c8e06b1f-713a-401c-8fc0-80d7981ee2c1",
@@ -81,7 +81,7 @@
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
       "position": [
-        -240,
+        -336,
         0
       ],
       "id": "479f7354-7dd3-4094-98fc-dd4d13b13e90",
@@ -94,7 +94,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        144,
+        32,
         0
       ],
       "id": "69e19646-3119-4a6d-bcee-89beaf65b31b",
@@ -107,7 +107,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        672,
+        560,
         0
       ],
       "id": "f13cc339-4a65-4ec8-a22d-812aeb1a5f5d",
@@ -120,7 +120,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        832,
+        704,
         0
       ],
       "id": "7c9aeb25-4f07-46d4-bd02-5105b8b43e2b",
@@ -133,7 +133,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1600,
+        1376,
         0
       ],
       "id": "42e13f49-c235-432b-9675-ff2de65612a6",
@@ -146,11 +146,11 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        0,
+        -160,
         0
       ],
       "id": "08d9549d-9239-4cb6-b161-2d1ace7f4a0b",
-      "name": "Code in JavaScript"
+      "name": "Categorize Market Features"
     },
     {
       "parameters": {
@@ -159,11 +159,11 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1760,
+        1568,
         0
       ],
       "id": "41283e7b-45e0-4342-bc73-2aeeb800c9ab",
-      "name": "Code in JavaScript1"
+      "name": "Build Market Embedding Context"
     }
   ],
   "pinData": {},
@@ -227,7 +227,7 @@
       "main": [
         [
           {
-            "node": "Code in JavaScript",
+            "node": "Categorize Market Features",
             "type": "main",
             "index": 0
           }
@@ -267,22 +267,22 @@
         ]
       ]
     },
-    "Code in JavaScript": {
+    "Deterministic Pressure Engine": {
       "main": [
         [
           {
-            "node": "Retreive-Trade-Symbol",
+            "node": "Build Market Embedding Context",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Deterministic Pressure Engine": {
+    "Categorize Market Features": {
       "main": [
         [
           {
-            "node": "Code in JavaScript1",
+            "node": "Retreive-Trade-Symbol",
             "type": "main",
             "index": 0
           }
@@ -295,7 +295,7 @@
     "executionOrder": "v1",
     "availableInMCP": false
   },
-  "versionId": "112b2a82-8b2f-4c15-8dfb-ffd8481d62fc",
+  "versionId": "d19bc9d5-f819-4309-b7ae-364e45731c5a",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "99f8c50ed3de66be5a87b2eda897b96771bb423ac49e5b33cd90d2b6bae8b0fb"

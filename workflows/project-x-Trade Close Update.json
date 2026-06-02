@@ -3,19 +3,6 @@
   "nodes": [
     {
       "parameters": {
-        "jsCode": "return items.map(item => {\n\n  const data = item.json;\n\n  // get id from nested trade object\n  const rawId = data.trade?.order_id || \"\";\n\n  // remove all non-digits (keeps only numbers)\n  const cleanId = rawId.replace(/\\D/g, \"\");\n\n  return {\n    json: {\n      id: cleanId,\n      payload: {\n        exit_price: data.exit_price,\n        exit_timestamp: data.exit_timestamp,\n        pnl_usdt: data.pnl_usdt,\n        pnl_percent: data.pnl_percent,\n        result: data.result,\n        exit_reason: data.exit_reason,\n        holding_time_minutes: data.holding_time_minutes,\n        rr_realized: data.rr_realized\n      }\n    }\n  };\n\n});"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        288,
-        80
-      ],
-      "id": "d05c2644-a141-4560-82c3-cafd38596305",
-      "name": "Code in JavaScript"
-    },
-    {
-      "parameters": {
         "resource": "payload",
         "operation": "setPayload",
         "collectionName": {
@@ -55,26 +42,39 @@
       ],
       "id": "e1f42bed-b8d8-4895-9c67-d43ee7a88966",
       "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n\n  const data = item.json;\n\n  // get id from nested trade object\n  const rawId = data.trade?.order_id || \"\";\n\n  // remove all non-digits (keeps only numbers)\n  const cleanId = rawId.replace(/\\D/g, \"\");\n\n  return {\n    json: {\n      id: cleanId,\n      payload: {\n        exit_price: data.exit_price,\n        exit_timestamp: data.exit_timestamp,\n        pnl_usdt: data.pnl_usdt,\n        pnl_percent: data.pnl_percent,\n        result: data.result,\n        exit_reason: data.exit_reason,\n        holding_time_minutes: data.holding_time_minutes,\n        rr_realized: data.rr_realized\n      }\n    }\n  };\n\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        288,
+        80
+      ],
+      "id": "d05c2644-a141-4560-82c3-cafd38596305",
+      "name": "Prepare Trade Close Update Payload"
     }
   ],
   "pinData": {},
   "connections": {
-    "Code in JavaScript": {
+    "When Executed by Another Workflow": {
       "main": [
         [
           {
-            "node": "Set Payload",
+            "node": "Prepare Trade Close Update Payload",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "When Executed by Another Workflow": {
+    "Prepare Trade Close Update Payload": {
       "main": [
         [
           {
-            "node": "Code in JavaScript",
+            "node": "Set Payload",
             "type": "main",
             "index": 0
           }
@@ -87,7 +87,7 @@
     "executionOrder": "v1",
     "availableInMCP": false
   },
-  "versionId": "afb8d066-5955-4f7b-ae82-c2a8917b3196",
+  "versionId": "2b05aba6-6fd7-482e-b24a-0a7169956da9",
   "meta": {
     "instanceId": "99f8c50ed3de66be5a87b2eda897b96771bb423ac49e5b33cd90d2b6bae8b0fb"
   },
