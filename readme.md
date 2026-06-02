@@ -1,5 +1,7 @@
 # 🚀 Project-X Crypto Trade Retrieval System
 
+![Project-X Architecture](screenshots/template/project-template.png)
+
 ## 📖 Overzicht
 
 Project-X is een lokaal AI-assisted retrieval platform ontworpen voor het analyseren, vergelijken en contextualiseren van historische cryptocurrency trades.
