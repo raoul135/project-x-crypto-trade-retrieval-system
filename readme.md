@@ -4,18 +4,20 @@
 
 ## 📖 Overzicht
 
-Project-X is een lokaal AI-assisted retrieval platform ontworpen voor het analyseren, vergelijken en contextualiseren van historische cryptocurrency trades.
+Project-X is een lokaal AI-gestuurd trade retrieval platform dat ontworpen werd om historische cryptocurrency trades sneller, consistenter en met meer context te analyseren.
 
-Het systeem combineert:
+Het systeem helpt gebruikers bij het terugvinden van vergelijkbare historische trades door gestructureerde tradegegevens te combineren met marktkenmerken, sentimentanalyse en semantische zoektechnieken.
 
-- 🔄 Workflow automatisatie  
-- 🧠 Lokale AI verwerking  
-- 🔍 Vector embeddings  
-- 📊 Semantische retrieval  
+Om dit te realiseren combineert Project-X:
 
-om historische trade setups sneller, consistenter en schaalbaarder analyseerbaar te maken.
+* 🔄 Workflow automatisatie met n8n
+* 🧠 Lokale AI-verwerking via LM Studio
+* 🔍 Vector embeddings en opslag in Qdrant
+* 📊 Semantische retrieval van historische trades
+* 📈 Geautomatiseerde evaluatie van retrievalkwaliteit
 
----
+Het resultaat is een end-to-end AI retrieval architectuur die historische tradecontext kan verrijken, opslaan, terugvinden en evalueren binnen een volledig lokale en privacygerichte omgeving.
+
 ## 📁 Repository Structuur
 
 ```text
@@ -190,6 +192,54 @@ x-postgres-data
 4. Importeer alle workflows
 5. Controleer of alle nodes correct geladen zijn
 6. Stel credentials en connecties in indien nodig
+
+---
+#   📰  Stap 6  NewsAPI Configuratie
+
+De workflow **Project-X News Sentiment Extraction** gebruikt NewsAPI voor het ophalen van recente cryptocurrency-gerelateerde nieuwsartikelen.
+
+### API Key Aanmaken
+
+1. Maak een gratis account aan op:
+   https://newsapi.org
+
+2. Genereer een persoonlijke API key.
+
+### API Key Configureren
+
+1. Open workflow:
+
+```text
+Project-X News Sentiment Extraction
+```
+
+2. Open node:
+
+```text
+Raw-Sentiment-Data
+```
+
+3. Zoek parameter:
+
+```text
+apiKey
+```
+
+4. Vervang:
+
+```javascript
+{{$env.NEWS_API_KEY}}
+```
+
+door je eigen NewsAPI key.
+
+### Voorbeeld
+
+```text
+123456789abcdef123456789abcdef12
+```
+
+Deze API key is vereist voor het correct ophalen van nieuwsartikelen binnen de sentimentanalyse workflow.
 
 ---
 
