@@ -47,7 +47,7 @@
             },
             {
               "name": "apiKey",
-              "value": "926d085ce6e84965a4492ababde02516"
+              "value": "={{ $env.NEWS_API_KEY }}"
             },
             {
               "name": "language",
